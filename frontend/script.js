@@ -1,10 +1,31 @@
-// TODO: replace with your deployed backend URL once hosted
-const API_URL = "https://newmedicinepreddemo12-git-main-arjits-projects-65c4b9e2.vercel.app/";
+let medicineData = [];
+let allSymptoms = [];
 
-// Example symptom list (you can replace this by fetching from CSV)
-const allSymptoms = [
-  "Fever", "Cough", "Headache", "Cold", "Body Pain", "Nausea", "Vomiting"
-];
+// Parse CSV file (must be in same folder as index.html)
+Papa.parse("demo6.csv", {
+  download: true,
+  header: true,
+  complete: function(results) {
+    medicineData = results.data;
+
+    // Extract all unique symptoms from the first column
+    const symptomSet = new Set();
+    medicineData.forEach(row => {
+      const raw = row.Symptom || row.Symptoms || ""; // some CSVs use different header names
+      raw.split(",").forEach(s => {
+        const clean = s.trim();
+        if (clean) symptomSet.add(clean);
+      });
+    });
+
+    allSymptoms = Array.from(symptomSet).sort();
+    renderSymptoms(); // load into UI
+    console.log("Loaded symptoms:", allSymptoms.length);
+  },
+  error: function(err) {
+    console.error("Error loading CSV:", err);
+  }
+});
 
 const symptomList = document.getElementById("symptom-list");
 const searchInput = document.getElementById("search");
@@ -26,14 +47,11 @@ searchInput.addEventListener("input", e => renderSymptoms(e.target.value));
 document.getElementById("clear-btn").addEventListener("click", () => {
   document.getElementById("age").value = "";
   document.getElementById("duration").value = "";
-  document.getElementById("output").value = "";
+  output.value = "";
   document.querySelectorAll("#symptom-list input[type='checkbox']").forEach(cb => cb.checked = false);
 });
 
-document.getElementById("recommend-btn").addEventListener("click", async () => {
-  const age = document.getElementById("age").value;
-  const duration = document.getElementById("duration").value;
-  const gender = document.querySelector("input[name='gender']:checked").value;
+document.getElementById("recommend-btn").addEventListener("click", () => {
   const selected = Array.from(document.querySelectorAll("#symptom-list input:checked"))
     .map(cb => cb.value.toLowerCase());
 
@@ -42,28 +60,20 @@ document.getElementById("recommend-btn").addEventListener("click", async () => {
     return;
   }
 
-  const body = {
-    symptoms: selected.join(", "),
-    age,
-    gender,
-    pregnancy: "no",
-    feeding: "no",
-    duration
-  };
+  // Find all rows where any selected symptom is included
+  const matches = medicineData.filter(row => {
+    const symptomText = (row.Symptom || row.Symptoms || "").toLowerCase();
+    return selected.some(sym => symptomText.includes(sym));
+  });
 
-  output.value = "Fetching recommendation...";
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    output.value = data.result;
-  } catch (err) {
-    output.value = "Error connecting to backend: " + err;
+  if (matches.length === 0) {
+    output.value = "No medicines found for selected symptoms.";
+    return;
   }
-});
 
-// initial load
-renderSymptoms();
+  const resultText = matches
+    .map(row => `${row.Medicine || row.MedicineName || "Unknown"} → for ${row.Symptom || row.Symptoms}`)
+    .join("\n");
+
+  output.value = resultText;
+});
