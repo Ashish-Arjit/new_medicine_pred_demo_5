@@ -1,5 +1,5 @@
 // TODO: replace with your deployed backend URL once hosted
-const API_URL = "https://your-backend-service.onrender.com/recommend";
+const API_URL = "https://newmedicinepreddemo12.vercel.app/";
 
 // Example symptom list (you can replace this by fetching from CSV)
 const allSymptoms = [
